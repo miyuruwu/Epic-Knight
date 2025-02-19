@@ -27,20 +27,20 @@ static void handle_events(SDL_Event* event) {
 
 }
 
-static void update() {
+static void update(float delta_time) {
     SDL_PumpEvents();
     const bool *keyboard_state = SDL_GetKeyboardState(nullptr);
     if(keyboard_state[SDL_SCANCODE_W]){
-        position0.y -= 1;
+        position0.y -= 60*delta_time;
     }
     if(keyboard_state[SDL_SCANCODE_S]){
-        position0.y += 1;
+        position0.y += 60*delta_time;
     }
     if(keyboard_state[SDL_SCANCODE_A]){
-        position0.x -= 1;
+        position0.x -= 60*delta_time;
     }
     if(keyboard_state[SDL_SCANCODE_D]){
-        position0.x += 1;
+        position0.x += 60*delta_time;
     }
     player_position.x = position0.x;
     player_position.y = position0.y;

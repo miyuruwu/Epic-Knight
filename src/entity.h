@@ -6,7 +6,7 @@
 typedef struct {
     void(*quit)(void);
     void(*handle_events)(SDL_Event*);
-    void(*update)(void);
+    void(*update)(float);
     void(*render)(SDL_Renderer*);
 } Entity;
 
