@@ -7,7 +7,13 @@ using namespace std;
 
 static SDL_Texture* player_texture;
 static SDL_FRect sprite_frame = {18,15,15,18};
-static SDL_FRect player_position = {250,250,15,18};
+
+struct Position {
+    float x, y;
+};
+
+Position position0 = {0,0};
+static SDL_FRect player_position = {position0.x,position0.y,15,18};
 
 static void quit() {
     if (player_texture) {
@@ -22,7 +28,22 @@ static void handle_events(SDL_Event* event) {
 }
 
 static void update() {
-
+    SDL_PumpEvents();
+    const bool *keyboard_state = SDL_GetKeyboardState(nullptr);
+    if(keyboard_state[SDL_SCANCODE_W]){
+        position0.y -= 1;
+    }
+    if(keyboard_state[SDL_SCANCODE_S]){
+        position0.y += 1;
+    }
+    if(keyboard_state[SDL_SCANCODE_A]){
+        position0.x -= 1;
+    }
+    if(keyboard_state[SDL_SCANCODE_D]){
+        position0.x += 1;
+    }
+    player_position.x = position0.x;
+    player_position.y = position0.y;
 }
 
 static void render(SDL_Renderer* renderer) {
