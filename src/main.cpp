@@ -37,7 +37,7 @@ void render() {
     // vẽ nhân vật
     SDL_FRect sprite_frame = {18,15,15,18};
     SDL_FRect player_position = {250,250,15,18};
-    SDL_RenderTexture(renderer, player_texture, &sprite_frame, nullptr);
+    SDL_RenderTexture(renderer, player_texture, &sprite_frame, &player_position);
     SDL_SetTextureScaleMode(player_texture, SDL_SCALEMODE_NEAREST);
 
     SDL_RenderPresent(renderer);
