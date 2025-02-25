@@ -1,14 +1,50 @@
 #define SDL_MAIN_HANDLED
+#include "json.hpp"
 #include<SDL2/SDL.h>
 #include<SDL2/SDL_image.h>
 #include<iostream>
+#include<fstream>
+#include<nlohmann/json.hpp>
+#include<vector>
+#include<string>
 
 SDL_Window* window = nullptr;
 SDL_Renderer* renderer = nullptr;
 const int SCREEN_WIDTH = 1280;
-const int SCREEN_HEIGHT = 720;
+const int SCREEN_HEIGHT = 800;
 bool gameRunning = true;
 SDL_Event event;
+
+SDL_Texture* loadTexture(const char* path) {
+    SDL_Texture* newTexture = IMG_LoadTexture(renderer, path);
+    if (newTexture == nullptr) {
+        std::cerr << "Failed to load texture: " << IMG_GetError() << std::endl;
+        return nullptr;
+    }
+    return newTexture;
+}
+
+class Entity {
+public:
+    SDL_Texture* texture;
+    SDL_FRect rect;
+    float x, y, w, h;
+    Entity(const char* path, float x, float y, float w, float h) {
+        texture = loadTexture(path);
+        this->x = x;
+        this->y = y;
+        this->w = w;
+        this->h = h;
+        rect = {x, y, w, h};
+    }
+    void draw() {
+        rect.x = x;
+        rect.y = y;
+        rect.w = w;
+        rect.h = h;
+        SDL_RenderCopyF(renderer, texture, nullptr, &rect);
+    }
+};
 
 void initialize() {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -41,15 +77,6 @@ void initialize() {
     }
 }
 
-SDL_Texture* loadTexture(const char* path) {
-    SDL_Texture* newTexture = IMG_LoadTexture(renderer, path);
-    if (newTexture == nullptr) {
-        std::cerr << "Failed to load texture: " << IMG_GetError() << std::endl;
-        return nullptr;
-    }
-    return newTexture;
-}
-
 void close() {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
@@ -58,14 +85,12 @@ void close() {
 }
 
 void drawStartScreen() {
-    SDL_Texture* backgroundTexture = loadTexture("res/images/background.png");
-    SDL_Texture* startButtonTexture = loadTexture("res/images/start_button.png");
-    if (!backgroundTexture || !startButtonTexture) {
+    Entity background("res/images/start_background.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    Entity startButton("res/images/start_button.png", SCREEN_WIDTH / 2 - 75, SCREEN_HEIGHT - 150, 200, 100);
+    if (!background.texture || !startButton.texture) {
         std::cerr << "Failed to load textures." << std::endl;
         return;
     }
-    // Draw the start button
-    SDL_FRect buttonRect = {SCREEN_WIDTH / 2 - 75, SCREEN_HEIGHT - 150, 200, 100};
     bool startScreenActive = true;
     while (startScreenActive) {
         // Handle events
@@ -78,8 +103,8 @@ void drawStartScreen() {
                 int mouseX, mouseY;
                 SDL_GetMouseState(&mouseX, &mouseY);
 
-                if (mouseX >= buttonRect.x && mouseX <= buttonRect.x + buttonRect.w &&
-                    mouseY >= buttonRect.y && mouseY <= buttonRect.y + buttonRect.h) {
+                if (mouseX >= startButton.rect.x && mouseX <= startButton.rect.x + startButton.rect.w &&
+                    mouseY >= startButton.rect.y && mouseY <= startButton.rect.y + startButton.rect.h) {
                     startScreenActive = false; // Exit start screen if the button is clicked
                 }
             }
@@ -88,28 +113,132 @@ void drawStartScreen() {
         SDL_RenderClear(renderer);
 
         // Draw the background
-        SDL_RenderCopy(renderer, backgroundTexture, nullptr, nullptr);
+        background.draw();
         // Draw the start button
-        SDL_RenderCopyF(renderer, startButtonTexture, nullptr, &buttonRect);
+        startButton.draw();
         SDL_RenderPresent(renderer);
     }
-    SDL_DestroyTexture(backgroundTexture);
-    SDL_DestroyTexture(startButtonTexture);
 }
 
-int main(int argc, char* argv[]) {
-    initialize();
-    drawStartScreen();
+std::vector<std::vector<int>> loadMap(const std::string& path) {
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open map file: " << path << std::endl;
+        return {};
+    }
+
+    nlohmann::json mapData;
+    file >> mapData;
+    file.close();
+
+    // Extract map dimensions
+    int mapWidth = mapData["width"];
+    int mapHeight = mapData["height"];
+
+    // Extract tile data from the first layer
+    std::vector<int> tileData = mapData["layers"][0]["data"];
+
+    std::vector<std::vector<int>> map(mapHeight, std::vector<int>(mapWidth, 0));
+    for (int y = 0; y < mapHeight; y++) {
+        for (int x = 0; x < mapWidth; x++) {
+            map[y][x] = tileData[y * mapWidth + x] - 1;
+        }
+    }
+
+    return map;
+}
+
+void renderMap(SDL_Renderer* renderer, const std::vector<std::vector<int>>& map, SDL_Texture* tilesetTexture, int tileSize) {
+    SDL_FRect srcRect_air = {0, 0, 0, 0}; // Air tile (no texture)
+    SDL_FRect srcRect_20 = {215, 29, tileSize, tileSize}; // Tile ID 20
+    SDL_FRect srcRect_32 = {221, 64, tileSize, tileSize}; // Tile ID 32
+    SDL_FRect srcRect_8 = {219, 0, tileSize, tileSize};   // Tile ID 8
+
+    for (int y = 0; y < map.size(); y++) {
+        for (int x = 0; x < map[y].size(); x++) {
+            int tileID = map[y][x];
+            SDL_FRect srcRect;
+            switch (tileID) {
+                case 0: // Air tile
+                    srcRect = srcRect_air;
+                    break;
+                case 20: // Tile ID 20
+                    srcRect = srcRect_20;
+                    break;
+                case 32: // Tile ID 32
+                    srcRect = srcRect_32;
+                    break;
+                case 8: // Tile ID 8
+                    srcRect = srcRect_8;
+                    break;
+                default:
+                    srcRect = srcRect_air;
+                    break;
+            }
+
+            // Define the destination rectangle (where to render on the screen)
+            SDL_FRect destRect = {x * tileSize, y * tileSize, tileSize, tileSize};
+            // Render the tile (if it's not an air tile)
+            if (tileID != 0) {
+                SDL_RenderTexture(renderer, tilesetTexture, &srcRect, &destRect);
+            }
+        }
+    }
+}
+
+void drawGameScreen() {
+    // Load the map
+    std::vector<std::vector<int>> map = loadMap("res/tiles/map1.tmj");
+
+    // Load the tileset
+    SDL_Texture* tilesetTexture = loadTexture("res/images/tileset_32x32.png");
+    if (!tilesetTexture) {
+        std::cerr << "Failed to load tileset texture." << std::endl;
+        return;
+    }
+
+    // Define tile properties
+    const int TILE_SIZE = 32; // Size of each tile in pixels
+
+    // Load background entities
+    Entity background("res/images/background.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    Entity bg_0("res/images/bg_0.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    Entity bg_1("res/images/bg_1.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    Entity bg_2("res/images/bg_2.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
     while (gameRunning) {
+        // Handle events
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 gameRunning = false;
             }
         }
+
+        // Clear the screen
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
+
+        // Draw background layers
+        background.draw();
+        bg_0.draw();
+        bg_1.draw();
+        bg_2.draw();
+
+        // Draw the map
+        renderMap(renderer, map, tilesetTexture, TILE_SIZE);
+
+        // Present the renderer
         SDL_RenderPresent(renderer);
     }
+
+    // Clean up textures
+    SDL_DestroyTexture(tilesetTexture);
+}
+
+int main(int argc, char* argv[]) {
+    initialize();
+    drawStartScreen();
+    drawGameScreen(); 
     close();
     return 0;
 }
