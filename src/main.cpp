@@ -4,9 +4,9 @@
 #include<SDL2/SDL_image.h>
 #include<iostream>
 #include<fstream>
-#include<nlohmann/json.hpp>
 #include<vector>
 #include<string>
+#include<filesystem>
 
 SDL_Window* window = nullptr;
 SDL_Renderer* renderer = nullptr;
@@ -121,6 +121,9 @@ void drawStartScreen() {
 }
 
 std::vector<std::vector<int>> loadMap(const std::string& path) {
+    std::cout << "Current working directory: " << std::filesystem::current_path() << std::endl;
+    std::cout << "Attempting to open map file: " << path << std::endl;
+
     std::ifstream file(path);
     if (!file.is_open()) {
         std::cerr << "Failed to open map file: " << path << std::endl;
@@ -134,14 +137,16 @@ std::vector<std::vector<int>> loadMap(const std::string& path) {
     // Extract map dimensions
     int mapWidth = mapData["width"];
     int mapHeight = mapData["height"];
+    std::cout << "Map dimensions: " << mapWidth << "x" << mapHeight << std::endl;
 
     // Extract tile data from the first layer
     std::vector<int> tileData = mapData["layers"][0]["data"];
+    std::cout << "Tile data size: " << tileData.size() << std::endl;
 
     std::vector<std::vector<int>> map(mapHeight, std::vector<int>(mapWidth, 0));
     for (int y = 0; y < mapHeight; y++) {
         for (int x = 0; x < mapWidth; x++) {
-            map[y][x] = tileData[y * mapWidth + x] - 1;
+            map[y][x] = tileData[y * mapWidth + x];
         }
     }
 
@@ -149,15 +154,15 @@ std::vector<std::vector<int>> loadMap(const std::string& path) {
 }
 
 void renderMap(SDL_Renderer* renderer, const std::vector<std::vector<int>>& map, SDL_Texture* tilesetTexture, int tileSize) {
-    SDL_FRect srcRect_air = {0, 0, 0, 0}; // Air tile (no texture)
-    SDL_FRect srcRect_20 = {215, 29, tileSize, tileSize}; // Tile ID 20
-    SDL_FRect srcRect_32 = {221, 64, tileSize, tileSize}; // Tile ID 32
-    SDL_FRect srcRect_8 = {219, 0, tileSize, tileSize};   // Tile ID 8
+    SDL_Rect srcRect_air = {0, 0, 0, 0}; // Air tile (no texture)
+    SDL_Rect srcRect_20 = {215, 29, tileSize, tileSize}; // Tile ID 20
+    SDL_Rect srcRect_32 = {221, 64, tileSize, tileSize}; // Tile ID 32
+    SDL_Rect srcRect_8 = {219, 0, tileSize, tileSize};   // Tile ID 8
 
     for (int y = 0; y < map.size(); y++) {
         for (int x = 0; x < map[y].size(); x++) {
             int tileID = map[y][x];
-            SDL_FRect srcRect;
+            SDL_Rect srcRect;
             switch (tileID) {
                 case 0: // Air tile
                     srcRect = srcRect_air;
@@ -180,7 +185,8 @@ void renderMap(SDL_Renderer* renderer, const std::vector<std::vector<int>>& map,
             SDL_FRect destRect = {x * tileSize, y * tileSize, tileSize, tileSize};
             // Render the tile (if it's not an air tile)
             if (tileID != 0) {
-                SDL_RenderTexture(renderer, tilesetTexture, &srcRect, &destRect);
+                //std::cout << "Rendering tile ID " << tileID << " at (" << x << ", " << y << ")" << std::endl;
+                SDL_RenderCopyF(renderer, tilesetTexture, &srcRect, &destRect);
             }
         }
     }
@@ -188,7 +194,7 @@ void renderMap(SDL_Renderer* renderer, const std::vector<std::vector<int>>& map,
 
 void drawGameScreen() {
     // Load the map
-    std::vector<std::vector<int>> map = loadMap("res/tiles/map1.tmj");
+    std::vector<std::vector<int>> map = loadMap("res/tiles/map1..tmj");
 
     // Load the tileset
     SDL_Texture* tilesetTexture = loadTexture("res/images/tileset_32x32.png");
