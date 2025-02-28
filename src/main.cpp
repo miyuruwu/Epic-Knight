@@ -12,9 +12,9 @@ SDL_Window* window = nullptr;
 SDL_Renderer* renderer = nullptr;
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 800;
-bool gameRunning = true;
+bool gameRunning = true, isMoving = false;
 SDL_Event event;
-float character_x = 704, character_y = 256;
+float character_x = 704, character_y = 224;
 const int TILE_SIZE = 32;
 
 SDL_Texture* loadTexture(const char* path) {
@@ -39,12 +39,20 @@ public:
         this->h = h;
         rect = {x, y, w, h};
     }
-    void draw(float x, float y, float w, float h, SDL_Rect* srcRect = nullptr) {
+    void draw(float x, float y, float w, float h, SDL_Rect* srcRect = nullptr, float angle = 0.0f) {
         rect.x = x;
         rect.y = y;
         rect.w = w;
         rect.h = h;
-        SDL_RenderCopyF(renderer, texture, srcRect, &rect);
+        SDL_RenderCopyExF(renderer, texture, srcRect, &rect, 0, NULL, SDL_FLIP_NONE);
+    }
+};
+
+class Direction {
+public:
+    bool left, right, up, down;
+    Direction() {
+        left = right = up = down = false;
     }
 };
 
@@ -194,20 +202,42 @@ void renderMap(SDL_Renderer* renderer, const std::vector<std::vector<int>>& map,
     }
 }
 
+Direction character_direction;
+
 void update() {
     // Update game logic here
     const Uint8* state = SDL_GetKeyboardState(NULL);
     if (state[SDL_SCANCODE_LEFT]) {
         character_x -= 5; // Move left
+        character_direction.left = true;
+        isMoving = true;
     }
     if (state[SDL_SCANCODE_RIGHT]) {
         character_x += 5; // Move right
+        character_direction.right = true;
+        isMoving = true;
     }
     if (state[SDL_SCANCODE_UP]) {
         character_y -= 5; // Move up
+        character_direction.up = true;
     }
     if (state[SDL_SCANCODE_DOWN]) {
         character_y += 5; // Move down
+        character_direction.down = true;
+    }
+}
+
+float DirectionToAngle(Direction direction) {
+    if (direction.left) {
+        return 180.0f;
+    } else if (direction.right) {
+        return 0.0f;
+    } else if (direction.up) {
+        return 270.0f;
+    } else if (direction.down) {
+        return 90.0f;
+    } else {
+        return 0.0f;
     }
 }
 
@@ -298,10 +328,12 @@ void drawGameScreen() {
         renderMap(renderer, map, tilesetTexture, TILE_SIZE);
 
         // Draw the character
-        if(SDL_GetKeyboardState(NULL)[SDL_SCANCODE_LEFT] || SDL_GetKeyboardState(NULL)[SDL_SCANCODE_RIGHT]) {
-            character_run.draw(character_x, character_y, 32, 64, &character_srcRect_run[run_frame]);
-        } else {
-            character_idle.draw(character_x, character_y, 32, 64, &character_srcRect_idle[idle_frame]);
+        float angle = DirectionToAngle(character_direction);
+        if(((SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_LEFT] &&character_direction.left) || (SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_RIGHT] && character_direction.right)) && isMoving) {
+            character_run.draw(character_x, character_y, 32, 64, &character_srcRect_run[run_frame], angle);
+        }
+        else {
+            character_idle.draw(character_x, character_y, 32, 64, &character_srcRect_idle[idle_frame], angle);
         }
         // Present the renderer
         SDL_RenderPresent(renderer);
