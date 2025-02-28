@@ -39,12 +39,12 @@ public:
         this->h = h;
         rect = {x, y, w, h};
     }
-    void draw(float x, float y, float w, float h, SDL_Rect* srcRect = nullptr, float angle = 0.0f) {
+    void draw(float x, float y, float w, float h, SDL_Rect* srcRect = nullptr, SDL_RendererFlip flip = SDL_FLIP_NONE) {
         rect.x = x;
         rect.y = y;
         rect.w = w;
         rect.h = h;
-        SDL_RenderCopyExF(renderer, texture, srcRect, &rect, 0, NULL, SDL_FLIP_NONE);
+        SDL_RenderCopyExF(renderer, texture, srcRect, &rect, 0, NULL, flip);
     }
 };
 
@@ -208,6 +208,7 @@ void update() {
     // Update game logic here
     const Uint8* state = SDL_GetKeyboardState(NULL);
     isMoving = false;
+    character_direction = Direction();
     if (state[SDL_SCANCODE_LEFT]) {
         character_x -= 5; // Move left
         character_direction.left = true;
@@ -225,20 +226,6 @@ void update() {
     if (state[SDL_SCANCODE_DOWN]) {
         character_y += 5; // Move down
         character_direction.down = true;
-    }
-}
-
-float DirectionToAngle(Direction direction) {
-    if (direction.left) {
-        return 180.0f;
-    } else if (direction.right) {
-        return 0.0f;
-    } else if (direction.up) {
-        return 270.0f;
-    } else if (direction.down) {
-        return 90.0f;
-    } else {
-        return 0.0f;
     }
 }
 
@@ -329,13 +316,16 @@ void drawGameScreen() {
         renderMap(renderer, map, tilesetTexture, TILE_SIZE);
 
         // Draw the character
-        float angle = DirectionToAngle(character_direction);
-        if(((SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_LEFT] &&character_direction.left) || (SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_RIGHT] && character_direction.right)) && isMoving) {
-            character_run.draw(character_x, character_y, 32, 64, &character_srcRect_run[run_frame], angle);
+        SDL_RendererFlip flip = SDL_FLIP_NONE;
+        if (character_direction.left) {
+            flip = SDL_FLIP_HORIZONTAL;
         }
-        else {
-            character_idle.draw(character_x, character_y, 32, 64, &character_srcRect_idle[idle_frame], angle);
+        if (isMoving) {
+            character_run.draw(character_x, character_y, 32, 64, &character_srcRect_run[run_frame], flip);
+        } else {
+            character_idle.draw(character_x, character_y, 32, 64, &character_srcRect_idle[idle_frame], flip);
         }
+
         // Present the renderer
         SDL_RenderPresent(renderer);
     }
