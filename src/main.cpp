@@ -14,7 +14,7 @@ const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 800;
 bool gameRunning = true;
 SDL_Event event;
-float character_x = 0, character_y = 0;
+float character_x = 704, character_y = 256;
 const int TILE_SIZE = 32;
 
 SDL_Texture* loadTexture(const char* path) {
@@ -226,12 +226,18 @@ void drawGameScreen() {
     const int TILE_SIZE = 32; // Size of each tile in pixels
 
     // Load character entity
-    Entity character("res/images/herochar_idle_anim_strip_4.png", 0, 0, 64, 16);
-    SDL_Rect character_srcRect[4];
+    Entity character_idle("res/images/herochar_idle_anim_strip_4.png", 0, 0, 64, 16);
+    SDL_Rect character_srcRect_idle[4];
     for (int i = 0; i < 4; i++) {
-        character_srcRect[i] = {2 + i * 16, 0, 11, 16};
+        character_srcRect_idle[i] = {2 + i * 16, 0, 11, 16};
     }
-    // Find the platform position
+    Entity character_run("res/images/herochar_run_anim_strip_6.png", 0, 0, 96, 16);
+    SDL_Rect character_srcRect_run[6];
+    for (int i = 0; i < 6; i++) {
+        character_srcRect_run[i] = {i * 16, 0, 13, 16};
+    }
+
+    /* Find the platform position
     int platform_x = -1;
     int platform_y = -1;
     for (int y = 0; y < map.size(); y++) {
@@ -249,7 +255,7 @@ void drawGameScreen() {
 
     // Adjust character position to stand on the platform
     character_x = platform_x;
-    character_y = platform_y - 32; // Adjust the y position to place the character on top of the platform
+    character_y = platform_y - 32; // Adjust the y position to place the character on top of the platform*/
 
     // Load background entities
     Entity background("res/images/background.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -257,7 +263,7 @@ void drawGameScreen() {
     Entity bg_1("res/images/bg_1.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     Entity bg_2("res/images/bg_2.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    int frame = 0;
+    int idle_frame = 0, run_frame = 0;
     Uint32 startTime = SDL_GetTicks();
 
     while (gameRunning) {
@@ -273,7 +279,8 @@ void drawGameScreen() {
         // Update the frame for animation
         Uint32 currentTime = SDL_GetTicks();
         if (currentTime - startTime > 100) { // Change frame every 100 ms
-            frame = (frame + 1) % 4;
+            idle_frame = (idle_frame + 1) % 4;
+            run_frame = (run_frame + 1) % 6;
             startTime = currentTime;
         }
 
@@ -291,8 +298,11 @@ void drawGameScreen() {
         renderMap(renderer, map, tilesetTexture, TILE_SIZE);
 
         // Draw the character
-        character.draw(character_x, character_y, 32, 32, &character_srcRect[frame]);
-
+        if(SDL_GetKeyboardState(NULL)[SDL_SCANCODE_LEFT] || SDL_GetKeyboardState(NULL)[SDL_SCANCODE_RIGHT]) {
+            character_run.draw(character_x, character_y, 32, 64, &character_srcRect_run[run_frame]);
+        } else {
+            character_idle.draw(character_x, character_y, 32, 64, &character_srcRect_idle[idle_frame]);
+        }
         // Present the renderer
         SDL_RenderPresent(renderer);
     }
