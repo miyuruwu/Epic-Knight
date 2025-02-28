@@ -207,6 +207,7 @@ Direction character_direction;
 void update() {
     // Update game logic here
     const Uint8* state = SDL_GetKeyboardState(NULL);
+    isMoving = false;
     if (state[SDL_SCANCODE_LEFT]) {
         character_x -= 5; // Move left
         character_direction.left = true;
