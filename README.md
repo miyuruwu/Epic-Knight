@@ -2,5 +2,6 @@
  
 Đỗ Hoàng Khoa 24021535
 
-Epic Knight là 1 game platformer được thiết kế để giải trí và giết thời gian.
-Bạn sẽ hóa thân vào vai một hiệp sĩ và liên tục tiến lên về phía trước trong khi phải né tránh hoặc tiêu diệt những con quái vật xuất hiện
+Epic Knight is an endless game created as a submissions for a programming course at university. 
+You become a brave knight, and try to slay as many monsters as possible. The more monsters slain, the more points you get.
+
