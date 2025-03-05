@@ -12,7 +12,7 @@ SDL_Window* window = nullptr;
 SDL_Renderer* renderer = nullptr;
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 800;
-bool gameRunning = true, isMoving = false;
+bool gameRunning = true, isMoving = false, isAttacking = false;
 SDL_Event event;
 float character_x = 0, character_y = 544;
 const int TILE_SIZE = 32;
@@ -203,6 +203,7 @@ void renderMap(SDL_Renderer* renderer, const std::vector<std::vector<int>>& map,
 }
 
 Direction character_direction;
+bool facingRight = true;
 
 void update() {
     // Update game logic here
@@ -212,12 +213,19 @@ void update() {
     if (state[SDL_SCANCODE_LEFT]) {
         character_x -= 5; // Move left
         character_direction.left = true;
+        facingRight = false;
         isMoving = true;
     }
     if (state[SDL_SCANCODE_RIGHT]) {
         character_x += 5; // Move right
         character_direction.right = true;
+        facingRight = true;
         isMoving = true;
+    }
+    if(state[SDL_SCANCODE_SPACE]) {
+        isAttacking = true;
+    } else {
+        isAttacking = false;
     }
     if(character_x < 0) {
         character_x = 0;
@@ -241,16 +249,22 @@ void drawGameScreen() {
     const int TILE_SIZE = 32; // Size of each tile in pixels
 
     // Load character entity
-    Entity character_idle("res/images/herochar_idle_anim_strip_4.png", 0, 0, 64, 16);
+    Entity character_idle("res/images/character_idle.png", 0, 0, 64, 16);
     SDL_Rect character_srcRect_idle[4];
     for (int i = 0; i < 4; i++) {
         character_srcRect_idle[i] = {2 + i * 16, 0, 11, 16};
     }
-    Entity character_run("res/images/herochar_run_anim_strip_6.png", 0, 0, 96, 16);
+    Entity character_run("res/images/character_run.png", 0, 0, 96, 16);
     SDL_Rect character_srcRect_run[6];
     for (int i = 0; i < 6; i++) {
         character_srcRect_run[i] = {i * 16, 0, 13, 16};
     }
+    Entity character_attack("res/images/character_attack.png", 0, 0, 128, 16);
+    SDL_Rect character_srcRect_attack[4];
+    character_srcRect_attack[0] = {3, 0, 28, 16};
+    character_srcRect_attack[1] = {34, 0, 28, 16};
+    character_srcRect_attack[2] = {65, 0, 28, 16};
+    character_srcRect_attack[3] = {97, 0, 28, 16};
 
     // Load background entities
     Entity background("res/images/background.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -258,7 +272,7 @@ void drawGameScreen() {
     Entity bg_1("res/images/bg_1.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     Entity bg_2("res/images/bg_2.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    int idle_frame = 0, run_frame = 0;
+    int idle_frame = 0, run_frame = 0, attack_frame = 0;
     Uint32 startTime = SDL_GetTicks();
 
     while (gameRunning) {
@@ -276,6 +290,7 @@ void drawGameScreen() {
         if (currentTime - startTime > 100) { // Change frame every 100 ms
             idle_frame = (idle_frame + 1) % 4;
             run_frame = (run_frame + 1) % 6;
+            attack_frame = (attack_frame + 1) % 4;
             startTime = currentTime;
         }
 
@@ -293,11 +308,10 @@ void drawGameScreen() {
         renderMap(renderer, map, tilesetTexture, TILE_SIZE);
 
         // Draw the character
-        SDL_RendererFlip flip = SDL_FLIP_NONE;
-        if (character_direction.left) {
-            flip = SDL_FLIP_HORIZONTAL;
-        }
-        if (isMoving) {
+        SDL_RendererFlip flip = facingRight ? SDL_FLIP_NONE : SDL_FLIP_HORIZONTAL;
+        if(isAttacking) {
+            character_attack.draw(character_x, character_y, 32, 64, &character_srcRect_attack[attack_frame], flip);
+        } else if (isMoving) {
             character_run.draw(character_x, character_y, 32, 64, &character_srcRect_run[run_frame], flip);
         } else {
             character_idle.draw(character_x, character_y, 32, 64, &character_srcRect_idle[idle_frame], flip);
