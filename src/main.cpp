@@ -210,6 +210,17 @@ void update() {
     const Uint8* state = SDL_GetKeyboardState(nullptr);
     isMoving = false;
     character_direction = Direction();
+
+    if (state[SDL_SCANCODE_SPACE]) {
+        isAttacking = true;
+    } else {
+        isAttacking = false;
+    }
+
+    if(isAttacking) {
+        return;
+    }
+
     if (state[SDL_SCANCODE_LEFT]) {
         character_x -= 5; // Move left
         character_direction.left = true;
@@ -221,11 +232,6 @@ void update() {
         character_direction.right = true;
         facingRight = true;
         isMoving = true;
-    }
-    if(state[SDL_SCANCODE_SPACE]) {
-        isAttacking = true;
-    } else {
-        isAttacking = false;
     }
     if(character_x < 0) {
         character_x = 0;
@@ -309,8 +315,12 @@ void drawGameScreen() {
 
         // Draw the character
         SDL_RendererFlip flip = facingRight ? SDL_FLIP_NONE : SDL_FLIP_HORIZONTAL;
+        float draw_x = character_x;
+        if(isAttacking && !facingRight) {
+            draw_x -= (112 - 32);
+        }
         if(isAttacking) {
-            character_attack.draw(character_x, character_y, 32, 64, &character_srcRect_attack[attack_frame], flip);
+            character_attack.draw(draw_x, character_y, 112, 64, &character_srcRect_attack[attack_frame], flip);
         } else if (isMoving) {
             character_run.draw(character_x, character_y, 32, 64, &character_srcRect_run[run_frame], flip);
         } else {
