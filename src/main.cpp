@@ -14,7 +14,7 @@ const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 800;
 bool gameRunning = true, isMoving = false, isJumping = false;
 SDL_Event event;
-float character_x = 704, character_y = 224;
+float character_x = 0, character_y = 544;
 const int TILE_SIZE = 32;
 
 SDL_Texture* loadTexture(const char* path) {
@@ -50,9 +50,9 @@ public:
 
 class Direction {
 public:
-    bool left, right, up, down;
+    bool left, right;
     Direction() {
-        left = right = up = down = false;
+        left = right = false;
     }
 };
 
@@ -202,39 +202,13 @@ void renderMap(SDL_Renderer* renderer, const std::vector<std::vector<int>>& map,
     }
 }
 
-bool isSolidTile(int tileID) {
-    return tileID == 8 || tileID == 32 || tileID == 20;
-}
-
-bool checkCollision(const std::vector<std::vector<int>>& map, float x, float y, float w, float h) {
-    int leftTile = static_cast<int>(x / TILE_SIZE);
-    int rightTile = static_cast<int>((x + w) / TILE_SIZE);
-    int topTile = static_cast<int>(y / TILE_SIZE);
-    int bottomTile = static_cast<int>((y + h) / TILE_SIZE);
-
-    for (int i = topTile; i <= bottomTile; ++i) {
-        for (int j = leftTile; j <= rightTile; ++j) {
-            if (i >= 0 && i < map.size() && j >= 0 && j < map[i].size()) {
-                if (isSolidTile(map[i][j])) {
-                    return true; // Collision detected
-                }
-            }
-        }
-    }
-    return false; // No collision
-}
-
 Direction character_direction;
-const float GRAVITY = 0.5f;
-float jumpVelocity = 0.0f;
 
-void update(const std::vector<std::vector<int>>& map) {
+void update() {
     // Update game logic here
-    const Uint8* state = SDL_GetKeyboardState(NULL);
+    const Uint8* state = SDL_GetKeyboardState(nullptr);
     isMoving = false;
     character_direction = Direction();
-    float newX = character_x, newY = character_y;
-    bool upPressedLastFrame = false;
     if (state[SDL_SCANCODE_LEFT]) {
         character_x -= 5; // Move left
         character_direction.left = true;
@@ -244,29 +218,6 @@ void update(const std::vector<std::vector<int>>& map) {
         character_x += 5; // Move right
         character_direction.right = true;
         isMoving = true;
-    }
-    if (state[SDL_SCANCODE_UP] && !isJumping && !upPressedLastFrame) {
-        isJumping = true;
-        jumpVelocity = -10.0f;
-    }
-    upPressedLastFrame = state[SDL_SCANCODE_UP];
-    if (state[SDL_SCANCODE_DOWN]) {
-        character_y += 5; // Move down
-        character_direction.down = true;
-    }
-    jumpVelocity += GRAVITY;
-    newY += jumpVelocity;
-    if(!checkCollision(map, newX, character_y, 32, 64)) {
-        character_x = newX;
-    }
-    if(!checkCollision(map, character_x, newY, 32, 64)) {
-        character_y = newY;
-    } else {
-        isJumping = false;
-        jumpVelocity = 0.0f;
-
-        int tileY = static_cast<int>((newY + 64) / TILE_SIZE);
-        character_y = tileY * TILE_SIZE-64;
     }
 }
 
@@ -296,26 +247,6 @@ void drawGameScreen() {
         character_srcRect_run[i] = {i * 16, 0, 13, 16};
     }
 
-    /* Find the platform position
-    int platform_x = -1;
-    int platform_y = -1;
-    for (int y = 0; y < map.size(); y++) {
-        for (int x = 0; x < map[y].size(); x++) {
-            if (map[y][x] == 8) {
-                platform_x = x * TILE_SIZE;
-                platform_y = y * TILE_SIZE;
-                break;
-            }
-        }
-        if (platform_x != -1 && platform_y != -1) {
-            break;
-        }
-    }
-
-    // Adjust character position to stand on the platform
-    character_x = platform_x;
-    character_y = platform_y - 32; // Adjust the y position to place the character on top of the platform*/
-
     // Load background entities
     Entity background("res/images/background.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     Entity bg_0("res/images/bg_0.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -331,7 +262,7 @@ void drawGameScreen() {
             if (event.type == SDL_QUIT) {
                 gameRunning = false;
             } else {
-                update(map);
+                update();
             }
         }
 
