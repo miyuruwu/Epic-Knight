@@ -219,6 +219,11 @@ void update() {
         character_direction.right = true;
         isMoving = true;
     }
+    if(character_x < 0) {
+        character_x = 0;
+    } else if(character_x > SCREEN_WIDTH - 32) {
+        character_x = SCREEN_WIDTH - 32;
+    }
 }
 
 void drawGameScreen() {
