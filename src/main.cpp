@@ -12,7 +12,7 @@ SDL_Window* window = nullptr;
 SDL_Renderer* renderer = nullptr;
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 800;
-bool gameRunning = true, isMoving = false, isJumping = false;
+bool gameRunning = true, isMoving = false;
 SDL_Event event;
 float character_x = 0, character_y = 544;
 const int TILE_SIZE = 32;
