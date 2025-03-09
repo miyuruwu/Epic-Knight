@@ -230,18 +230,18 @@ void initialize() {//initialize the screen
         exit(1);
     }
 
-    /*if (TTF_Init() != 0) {
+    if (TTF_Init() != 0) {
         std::cerr << "Failed to initialize SDL_ttf: " << TTF_GetError() << std::endl;
         SDL_Quit();
         exit(1);
     }
 
-    font = TTF_OpenFont("res/fonts/TimesNewRoman.ttf",24);
+    font = TTF_OpenFont("res/fonts/Arial.ttf",24);
     if(!font) {
         std::cerr << "Failed to load font: " << TTF_GetError() << std::endl;
         SDL_Quit();
         exit(1);
-    }*/
+    }
 
     window = SDL_CreateWindow("Epic Knight v1.0", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
     if (window == nullptr) {
@@ -262,10 +262,10 @@ void initialize() {//initialize the screen
 }
 
 void close() { // cleanup resources
-    /*if(font) {
+    if(font) {
         TTF_CloseFont(font);
     }
-    TTF_Quit();*/
+    TTF_Quit();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     IMG_Quit();
@@ -480,7 +480,17 @@ void draw_gameover_screen() {
         SDL_RenderClear(renderer);
         
         game_over.draw(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-
+        SDL_Color textColor = {255, 255, 255, 255}; 
+        SDL_Surface* textSurface = TTF_RenderText_Solid(font, "Press Enter to restart, Esc to quit", textColor);
+        if (textSurface) {
+            SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+            if (textTexture) {
+                SDL_Rect textRect = {SCREEN_WIDTH / 2 - 270, SCREEN_HEIGHT - 100, 500, 50}; // Position and size of the text
+                SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
+                SDL_DestroyTexture(textTexture);
+            }
+            SDL_FreeSurface(textSurface);
+        }
         SDL_RenderPresent(renderer);
     }
 }
