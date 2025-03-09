@@ -163,6 +163,15 @@ public:
             animationTimer = 0.0f;
         }
     }
+    SDL_FRect getAttackBoundingBox() const {
+        if(isAttacking) {
+            float attackWidth = 112;
+            float attackHeight = 64;
+            float attackX = facingRight ? x : x - (attackWidth-32);
+            return {attackX, y, attackWidth, attackHeight};
+        }
+        return {0,0,0,0};
+    }
 };
 
 class Enemy {
@@ -215,6 +224,9 @@ public:
             run_frame = (run_frame + 1) % 6;
             animationTimer = 0.0f;
         }
+    }
+    void kill() {
+        isActive = false;
     }
 };
 
@@ -305,8 +317,8 @@ void drawStartScreen() {
 }
 
 std::vector<std::vector<int>> loadMap(const std::string& path) {
-    std::cout << "Current working directory: " << std::filesystem::current_path() << std::endl;
-    std::cout << "Attempting to open map file: " << path << std::endl;
+    //std::cout << "Current working directory: " << std::filesystem::current_path() << std::endl;
+    //std::cout << "Attempting to open map file: " << path << std::endl;
 
     std::ifstream file(path);
     if (!file.is_open()) {
@@ -320,10 +332,10 @@ std::vector<std::vector<int>> loadMap(const std::string& path) {
 
     int mapWidth = mapData["width"];
     int mapHeight = mapData["height"];
-    std::cout << "Map dimensions: " << mapWidth << "x" << mapHeight << std::endl;
+    //std::cout << "Map dimensions: " << mapWidth << "x" << mapHeight << std::endl;
 
     std::vector<int> tileData = mapData["layers"][0]["data"];
-    std::cout << "Tile data size: " << tileData.size() << std::endl;
+    //std::cout << "Tile data size: " << tileData.size() << std::endl;
 
     std::vector<std::vector<int>> map(mapHeight, std::vector<int>(mapWidth, 0));
     for (int y = 0; y < mapHeight; y++) {
@@ -419,6 +431,15 @@ void drawGameScreen() {
                 enemies.push_back(Enemy("res/images/enemy_run.png", -100, 544, 100)); // spawn left
             } else {
                 enemies.push_back(Enemy("res/images/enemy_run.png", SCREEN_WIDTH + 100, 544, -100));  //spawn right
+            }
+        }
+
+        if(character.isAttacking) {
+            SDL_FRect attackBox = character.getAttackBoundingBox();
+            for(auto& enemy : enemies) {
+                if(checkCollision(attackBox,enemy.boundingBox)) {
+                    enemy.kill();
+                }
             }
         }
 
