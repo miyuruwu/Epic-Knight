@@ -7,7 +7,10 @@
 #include <vector>
 #include <string>
 #include <filesystem>
+#include <cstdlib>
+#include <ctime>
 
+//global variations
 SDL_Window* window = nullptr;
 SDL_Renderer* renderer = nullptr;
 const int SCREEN_WIDTH = 1280;
@@ -16,6 +19,8 @@ bool gameRunning = true;
 SDL_Event event;
 const int TILE_SIZE = 32;
 
+
+//load texture from file
 SDL_Texture* loadTexture(const char* path) {
     SDL_Texture* newTexture = IMG_LoadTexture(renderer, path);
     if (newTexture == nullptr) {
@@ -25,12 +30,14 @@ SDL_Texture* loadTexture(const char* path) {
     return newTexture;
 }
 
+
+//class to represent drawable object
 class Entity {
 public:
     SDL_Texture* texture;
     SDL_FRect rect;
     float x, y, w, h;
-    Entity(const char* path, float x, float y, float w, float h) {
+    Entity(const char* path, float x, float y, float w, float h) { //initialize position and size
         texture = loadTexture(path);
         this->x = x;
         this->y = y;
@@ -38,6 +45,7 @@ public:
         this->h = h;
         rect = {x, y, w, h};
     }
+    // draw the texture on screen
     void draw(float x, float y, float w, float h, SDL_Rect* srcRect = nullptr, SDL_RendererFlip flip = SDL_FLIP_NONE) {
         rect.x = x;
         rect.y = y;
@@ -47,13 +55,20 @@ public:
     }
 };
 
-class Direction {
+class Direction { // track movement 
 public:
     bool left, right;
     Direction() {
         left = right = false;
     }
 };
+
+bool checkCollision(const SDL_FRect& rect1, const SDL_FRect& rect2) {
+    return (rect1.x < rect2.x + rect2.w &&
+            rect1.x + rect1.w > rect2.x &&
+            rect1.y < rect2.y + rect2.h &&
+            rect1.y + rect1.h > rect2.y);
+}
 
 class Character {
 public:
@@ -64,6 +79,7 @@ public:
     bool isMoving, isAttacking, facingRight;
     int idle_frame, run_frame, attack_frame;
     float animationTimer;
+    SDL_FRect boundingBox;
 
     Character()
         : idle("res/images/character_idle.png", 0, 0, 64, 16),
@@ -78,9 +94,10 @@ public:
         run_frame = 0;
         attack_frame = 0;
         animationTimer = 0.0f;
+        boundingBox = {x,y,32,64};
     }
 
-    void update(float dt, const Uint8* state) {
+    void update(float dt, const Uint8* state) { // update char's actions
         isMoving = false;
         isAttacking = state[SDL_SCANCODE_SPACE];
 
@@ -101,9 +118,12 @@ public:
 
         if (x < 0) x = 0;
         else if (x > SCREEN_WIDTH - 32) x = SCREEN_WIDTH - 32;
+
+        boundingBox.x = x;
+        boundingBox.y = y;
     }
 
-    void draw() {
+    void draw() { // draw char
         SDL_RendererFlip flip = facingRight ? SDL_FLIP_NONE : SDL_FLIP_HORIZONTAL;
         float draw_x = x;
         if (isAttacking && !facingRight) {
@@ -132,7 +152,7 @@ public:
             idle.draw(x, y, 32, 64, &srcRect_idle[idle_frame], flip);
         }
     }
-
+    //update frames
     void updateAnimation(float dt) {
         animationTimer += dt;
         if (animationTimer > 0.1f) {
@@ -144,7 +164,60 @@ public:
     }
 };
 
-void initialize() {
+class Enemy {
+public:
+    Entity run;
+    float x, y;
+    bool isActive;
+    int run_frame;
+    float animationTimer;
+    float speed;
+    SDL_FRect boundingBox;
+
+    Enemy(const char* path, float x, float y, float speed)
+        : run(path, 0, 0, 96, 16) {
+        this->x = x;
+        this->y = y;
+        this->speed = speed;
+        isActive = true;
+        run_frame = 0;
+        animationTimer = 0.0f;
+        boundingBox = {x,y,32,64};
+    }
+
+    void update(float dt) {
+        x += speed * dt; 
+        if (x < -100 || x > SCREEN_WIDTH + 100) {
+            isActive = false; 
+        }
+
+        boundingBox.x = x;
+        boundingBox.y = y;
+    }
+
+    void draw() {
+        SDL_RendererFlip flip = (speed < 0) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
+        SDL_Rect srcRect_run[6] ={
+            {3,0,12,16},
+            {18,0,13,16},
+            {35,0,12,16},
+            {51,0,12,16},
+            {67,0,12,16},
+            {83,0,12,16},
+        };
+        run.draw(x, y, 32, 64, &srcRect_run[run_frame], flip);
+    }
+
+    void updateAnimation(float dt) {
+        animationTimer += dt;
+        if (animationTimer > 0.1f) {
+            run_frame = (run_frame + 1) % 6;
+            animationTimer = 0.0f;
+        }
+    }
+};
+
+void initialize() {//initialize the screen
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
         exit(1);
@@ -174,14 +247,14 @@ void initialize() {
     }
 }
 
-void close() {
+void close() { // cleanup resources
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     IMG_Quit();
     SDL_Quit();
 }
 
-void drawStartScreen() {
+void drawStartScreen() { 
     Entity background("res/images/start_background.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     Entity startButton("res/images/start_button.png", SCREEN_WIDTH / 2 - 75, SCREEN_HEIGHT - 150, 200, 100);
     if (!background.texture || !startButton.texture) {
@@ -294,6 +367,9 @@ void drawGameScreen() {
     Entity bg_2("res/images/bg_2.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
     Character character;
+    std::vector<Enemy> enemies;
+    float spawnTimer = 0.0f;
+    const float spawnInterval = 2.0f; // spawn enemies every 2 seconds
 
     Uint32 startTime = SDL_GetTicks();
     while (gameRunning) {
@@ -315,6 +391,30 @@ void drawGameScreen() {
         character.update(dt, state);
         character.updateAnimation(dt);
 
+        spawnTimer += dt;
+        if (spawnTimer >= spawnInterval) {
+            spawnTimer = 0.0f;
+            if (rand() % 2 == 0) {
+                enemies.push_back(Enemy("res/images/enemy_run.png", -100, 544, 100)); // spawn left
+            } else {
+                enemies.push_back(Enemy("res/images/enemy_run.png", SCREEN_WIDTH + 100, 544, -100));  //spawn right
+            }
+        }
+
+        for (auto& enemy : enemies) {
+            enemy.update(dt);
+            enemy.updateAnimation(dt);
+
+            // check for collision
+            if(checkCollision(character.boundingBox,enemy.boundingBox)) {
+                gameRunning = false;
+                break;
+            }
+        }
+
+        enemies.erase(std::remove_if(enemies.begin(), enemies.end(),
+            [](const Enemy& enemy) { return !enemy.isActive; }), enemies.end());
+
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
@@ -326,13 +426,22 @@ void drawGameScreen() {
         renderMap(renderer, map, tilesetTexture, TILE_SIZE);
         character.draw();
 
+        for (auto& enemy : enemies) {
+            enemy.draw();
+        }
+
         SDL_RenderPresent(renderer);
     }
 
     SDL_DestroyTexture(tilesetTexture);
 }
 
+void draw_gameover_screen() {
+    Entity game_over("res/images/game_over_screen.jpeg", 0, 0, SCREEN_WIDTH,SCREEN_HEIGHT);
+}
+
 int main(int argc, char* argv[]) {
+    srand(static_cast<unsigned int>(time(0))); // seed generate random numbers
     initialize();
     drawStartScreen();
     drawGameScreen();
