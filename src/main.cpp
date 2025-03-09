@@ -2,6 +2,7 @@
 #include "json.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h>
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -18,7 +19,7 @@ const int SCREEN_HEIGHT = 800;
 bool gameRunning = true;
 SDL_Event event;
 const int TILE_SIZE = 32;
-
+TTF_Font* font = nullptr;
 
 //load texture from file
 SDL_Texture* loadTexture(const char* path) {
@@ -229,6 +230,19 @@ void initialize() {//initialize the screen
         exit(1);
     }
 
+    /*if (TTF_Init() != 0) {
+        std::cerr << "Failed to initialize SDL_ttf: " << TTF_GetError() << std::endl;
+        SDL_Quit();
+        exit(1);
+    }
+
+    font = TTF_OpenFont("res/fonts/TimesNewRoman.ttf",24);
+    if(!font) {
+        std::cerr << "Failed to load font: " << TTF_GetError() << std::endl;
+        SDL_Quit();
+        exit(1);
+    }*/
+
     window = SDL_CreateWindow("Epic Knight v1.0", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
     if (window == nullptr) {
         std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;
@@ -248,6 +262,10 @@ void initialize() {//initialize the screen
 }
 
 void close() { // cleanup resources
+    /*if(font) {
+        TTF_CloseFont(font);
+    }
+    TTF_Quit();*/
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     IMG_Quit();
@@ -353,6 +371,9 @@ void renderMap(SDL_Renderer* renderer, const std::vector<std::vector<int>>& map,
     }
 }
 
+
+void draw_gameover_screen();
+
 void drawGameScreen() {
     std::vector<std::vector<int>> map = loadMap("res/tiles/map1..tmj");
     SDL_Texture* tilesetTexture = loadTexture("res/images/tileset_32x32.png");
@@ -407,8 +428,8 @@ void drawGameScreen() {
 
             // check for collision
             if(checkCollision(character.boundingBox,enemy.boundingBox)) {
-                gameRunning = false;
-                break;
+                draw_gameover_screen();
+                return;
             }
         }
 
@@ -437,8 +458,33 @@ void drawGameScreen() {
 }
 
 void draw_gameover_screen() {
-    Entity game_over("res/images/game_over_screen.jpeg", 0, 0, SCREEN_WIDTH,SCREEN_HEIGHT);
+    Entity game_over("res/images/game_over_screen.jpeg", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    
+    bool gameOverActive = true;
+    while (gameOverActive) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                gameRunning = false;
+                gameOverActive = false;
+            } else if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.sym == SDLK_RETURN) {  // Restart game
+                    gameOverActive = false;
+                    drawGameScreen(); // Restart game loop
+                } else if (event.key.keysym.sym == SDLK_ESCAPE) { // Quit game
+                    gameRunning = false;
+                    gameOverActive = false;
+                }
+            }
+        }
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
+        
+        game_over.draw(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+        SDL_RenderPresent(renderer);
+    }
 }
+
 
 int main(int argc, char* argv[]) {
     srand(static_cast<unsigned int>(time(0))); // seed generate random numbers
