@@ -14,7 +14,6 @@ const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 800;
 bool gameRunning = true;
 SDL_Event event;
-const int TILE_SIZE = 32;
 TTF_Font* font = nullptr;
 
 void initialize() {//initialize the screen
@@ -119,6 +118,7 @@ void drawGameScreen() {
     Entity bg_2("res/images/bg_2.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
     Character character;
+    character.setGrounds(collisionTiles);
     std::vector<Enemy> enemies;
     float spawnTimer = 0.0f;
     const float spawnInterval = 2.0f; // spawn enemies every 2 seconds

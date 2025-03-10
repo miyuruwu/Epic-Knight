@@ -5,6 +5,8 @@
 #include <iostream>
 #include "json.hpp"
 
+std::vector<SDL_FRect> collisionTiles;
+
 std::vector<std::vector<int>> loadMap(const std::string& path) {
     //std::cout << "Current working directory: " << std::filesystem::current_path() << std::endl;
     //std::cout << "Attempting to open map file: " << path << std::endl;
@@ -27,9 +29,23 @@ std::vector<std::vector<int>> loadMap(const std::string& path) {
     //std::cout << "Tile data size: " << tileData.size() << std::endl;
 
     std::vector<std::vector<int>> map(mapHeight, std::vector<int>(mapWidth, 0));
+
+    collisionTiles.clear(); 
+
     for (int y = 0; y < mapHeight; y++) {
         for (int x = 0; x < mapWidth; x++) {
-            map[y][x] = tileData[y * mapWidth + x];
+            int tileID = tileData[y * mapWidth + x];
+            map[y][x] = tileID;
+
+            if (tileID == 20 || tileID == 32 || tileID == 8) { 
+                SDL_FRect tileRect = {
+                    static_cast<float>(x * TILE_SIZE),
+                    static_cast<float>(y * TILE_SIZE),
+                    static_cast<float>(TILE_SIZE),
+                    static_cast<float>(TILE_SIZE)
+                };
+                collisionTiles.push_back(tileRect);
+            }
         }
     }
 
