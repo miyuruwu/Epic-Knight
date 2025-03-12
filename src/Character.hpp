@@ -12,9 +12,10 @@ public:
     Entity run;
     Entity attack;
     Entity jump;
+    Entity death;
     float x, y;
-    bool isMoving, isAttacking, facingRight, isJumping, canDoubleJump, jumpKeyReleased;
-    int idle_frame, run_frame, attack_frame, jump_frame;
+    bool isMoving, isAttacking, facingRight, isJumping, jumpKeyReleased, isWallSliding, isDead;
+    int idle_frame, run_frame, attack_frame, jump_frame, death_frame;
     float animationTimer;
     SDL_FRect boundingBox;
     float y_velocity;
@@ -25,6 +26,7 @@ public:
     void draw();
     void updateAnimation(float dt);
     void setGrounds(const std::vector<SDL_FRect>& groundsList);
+    void character_die();
     SDL_FRect getAttackBoundingBox() const;
 private:
     std::vector<SDL_FRect> grounds;

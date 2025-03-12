@@ -15,6 +15,7 @@ const int SCREEN_HEIGHT = 800;
 bool gameRunning = true;
 SDL_Event event;
 TTF_Font* font = nullptr;
+bool paused = false;
 
 void initialize() {//initialize the screen
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -102,6 +103,21 @@ void drawStartScreen() {
     }
 }
 
+void resetGame() {
+    gameRunning = true;
+    paused = false;
+
+    Character character;
+    character.setGrounds(collisionTiles);
+    std::vector<Enemy> enemies;
+
+    Uint32 startTime = SDL_GetTicks();
+    float spawnTimer = 0.0f;
+
+    drawGameScreen();
+}
+
+
 void draw_gameover_screen();
 
 void drawGameScreen() {
@@ -136,11 +152,26 @@ void drawGameScreen() {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 gameRunning = false;
+            } else if (event.type == SDL_KEYDOWN) {
+                if(event.key.keysym.sym == SDLK_ESCAPE) {
+                    paused = !paused;
+                    if(paused) {
+                        draw_pause_screen();
+                    } else {
+                        frameStart = SDL_GetTicks();
+                    }
+                }
             }
         }
 
-        const Uint8* state = SDL_GetKeyboardState(nullptr);
-        character.update(dt, state);
+        if(paused) continue;
+
+        if(!character.isDead) {
+            const Uint8* state = SDL_GetKeyboardState(nullptr);
+            if(paused) return;
+            character.update(dt, state);
+        }
+
         character.updateAnimation(dt);
 
         spawnTimer += dt;
@@ -168,8 +199,7 @@ void drawGameScreen() {
 
             // check for collision
             if(checkCollision(character.boundingBox,enemy.boundingBox)) {
-                draw_gameover_screen();
-                return;
+                character.character_die();
             }
         }
 
@@ -192,9 +222,68 @@ void drawGameScreen() {
         }
 
         SDL_RenderPresent(renderer);
+
+        if(!gameRunning) {
+            draw_gameover_screen();
+            return;
+        }
     }
 
     SDL_DestroyTexture(tilesetTexture);
+}
+
+void draw_pause_screen() {
+    bool menu_active = true;
+    int selected_option = 0; // 0 = resume, 1 = restart, 2 = quit
+    const char* options[] = {"Resume","Restart","Quit"};
+    SDL_Color text_color = {255,255,255,255};
+
+    while(menu_active) {
+        while(SDL_PollEvent(&event)) {
+            if(event.type == SDL_QUIT) {
+                gameRunning = false;
+                return;
+            } else if (event.type == SDL_KEYDOWN) {
+                if(event.key.keysym.sym == SDLK_DOWN) {
+                    selected_option = (selected_option+1)%3; // cycle down options
+                } else if (event.key.keysym.sym == SDLK_UP) {
+                    selected_option = (selected_option -1 +3) % 3; // cycle up options
+                } else if (event.key.keysym.sym == SDLK_RETURN) {
+                    switch (selected_option)
+                    {
+                    case 0: // resume
+                        paused = false;                        
+                        return;
+                    case 1: // restart
+                        paused = false;
+                        drawGameScreen();
+                        return;
+                    case 2: // quit
+                        gameRunning = false;
+                        return;
+                    }
+                } 
+            }
+        }
+
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150);
+        SDL_RenderClear(renderer);
+
+        for(int i = 0; i < 3; i++) {
+            SDL_Surface* textSurface = TTF_RenderText_Solid(font, options[i], selected_option == i ? SDL_Color{255, 0, 0, 255} : text_color);
+            SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+
+            SDL_Rect textRect = { SCREEN_WIDTH / 2 - 50, 300 + i * 50, 100, 40 };
+            SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
+
+            SDL_DestroyTexture(textTexture);
+            SDL_FreeSurface(textSurface);
+        }
+        SDL_RenderPresent(renderer);
+    }
+
+    SDL_Event flushEvent;
+    while (SDL_PollEvent(&flushEvent));
 }
 
 void draw_gameover_screen() {
@@ -209,10 +298,11 @@ void draw_gameover_screen() {
             } else if (event.type == SDL_KEYDOWN) {
                 if (event.key.keysym.sym == SDLK_RETURN) {  // Restart game
                     gameOverActive = false;
-                    drawGameScreen(); // Restart game loop
+                    resetGame();
                 } else if (event.key.keysym.sym == SDLK_ESCAPE) { // Quit game
                     gameRunning = false;
                     gameOverActive = false;
+                    return;
                 }
             }
         }

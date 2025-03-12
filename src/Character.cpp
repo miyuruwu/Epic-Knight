@@ -8,19 +8,22 @@ Character::Character()
     : idle("res/images/character_idle.png", 0, 0, 64, 16),
       run("res/images/character_run.png", 0, 0, 96, 16),
       jump("res/images/character_jump.png", 0, 0, 48, 16),
-      attack("res/images/character_attack.png", 0, 0, 128, 16) {
+      attack("res/images/character_attack.png", 0, 0, 128, 16),
+      death("res/images/character_death.png", 0, 0, 128,16) {
     x = SCREEN_WIDTH / 2;
     y = 544;
     isMoving = false;
     isAttacking = false;
     facingRight = true;
     isJumping = false;
-    canDoubleJump = false;
     jumpKeyReleased = true;
+    isWallSliding = false;
+    isDead = false;
     idle_frame = 0;
     run_frame = 0;
     attack_frame = 0;
     jump_frame = 0;
+    death_frame = 0;
     animationTimer = 0.0f;
     boundingBox = {x, y, 32, 64};
 
@@ -29,11 +32,17 @@ Character::Character()
 }
 
 void Character::update(float dt, const Uint8* state) {
+    if(isDead || paused) {
+        return;
+    }
     isMoving = false;
     bool movingLeft = false, movingRight = false;
-    isAttacking = state[SDL_SCANCODE_SPACE];
-
-    if (isAttacking) return;
+    
+    if(state[SDL_SCANCODE_SPACE] && !isJumping) {
+        isAttacking = true;
+    } else {
+        isAttacking = false;
+    }
 
     previousX = x;
     previousY = y;
@@ -58,20 +67,17 @@ void Character::update(float dt, const Uint8* state) {
             if (!isJumping) { 
                 y_velocity = -400.0f;
                 isJumping = true;
-                canDoubleJump = true; 
             } 
-            else if (canDoubleJump) { 
-                y_velocity = -350.0f;
-                canDoubleJump = false;
-            }
             jumpKeyReleased = false;
         }
     } else {
         jumpKeyReleased = true;
     }
 
-    y_velocity += gravity * dt;
-    y += y_velocity * dt;
+    if(!paused) {
+        y_velocity += gravity*dt;
+        y += y_velocity*dt;
+    }
 
     if (x < 0) x = 0;
     else if (x > SCREEN_WIDTH - 32) x = SCREEN_WIDTH - 32;
@@ -102,38 +108,39 @@ void Character::update(float dt, const Uint8* state) {
         }
     }
 
-    if (onGround && y_velocity > 0) {
-        y = closestGround.y - boundingBox.h;
+    if (onGround) {
+        if (y_velocity > 0) {
+            y = closestGround.y - boundingBox.h;
+            y_velocity = 0.0f;
+            isJumping = false;
+        }
+    } else if (y_velocity > 500.0f) { 
         y_velocity = 0.0f;
-        isJumping = false;
-        canDoubleJump = true;
-    } else {
-        isJumping = true;
+        //std::cout << "Falling too fast, correcting position!" << std::endl;
     }
 
     if (hitWall) {  
+        if (y_velocity > 0) {  
+            y_velocity = 100.0f;
+        }
+    
         if (movingLeft) {  
-            x = previousX;  
+            x = previousX + 3;
+            isWallSliding = true;
         }  
         if (movingRight) {  
-            x = previousX; 
-        }  
-        if (y_velocity > 0) {  
-            y += y_velocity * dt;
+            x = previousX - 3;
+            isWallSliding = true;
         }
+    } else {
+        isWallSliding = false;
     }
-    
-    
+
     if (hitCeiling) {
         y_velocity = 0.0f;
         y = previousY;
     }
 
-    if (hitWall) {
-        std::cout << "Wall Collision Detected at X: " << x << " | Falling: " << (y_velocity > 0) << std::endl;
-    }
-    
-    
 }
 
 void Character::draw() {
@@ -141,6 +148,25 @@ void Character::draw() {
     float draw_x = x;
     if (isAttacking && !facingRight) {
         draw_x -= (112 - 32);
+    }
+
+    if(isDead) {
+        SDL_Rect srcRect_death[8] {
+            {4,0,9,16},
+            {20,0,9,16},
+            {37,0,7,16},
+            {52,0,9,16},
+            {68,0,11,16},
+            {84,0,11,16},
+            {100,0,11,16},
+            {115,0,11,16}
+        };
+        if(death_frame < 7) {
+            death.draw(x,y,32,64, &srcRect_death[death_frame], flip);
+        } else {
+            death.draw(x,y,32,64, &srcRect_death[7], flip);
+        }
+        return;
     }
 
     if (isAttacking) {
@@ -175,10 +201,21 @@ void Character::draw() {
 void Character::updateAnimation(float dt) {
     animationTimer += dt;
     if (animationTimer > 0.1f) {
-        idle_frame = (idle_frame + 1) % 4;
-        run_frame = (run_frame + 1) % 6;
-        attack_frame = (attack_frame + 1) % 4;
-        jump_frame = (jump_frame + 1) % 3;
+        if(isDead) {
+            if(death_frame < 7) {
+                death_frame++;
+            } else {
+                static Uint32 deathTimer = SDL_GetTicks();
+                if(SDL_GetTicks() - deathTimer > 1500) {
+                    gameRunning = false;
+                }
+            }
+        } else {
+            idle_frame = (idle_frame + 1) % 4;
+            run_frame = (run_frame + 1) % 6;
+            attack_frame = (attack_frame + 1) % 4;
+            jump_frame = (jump_frame + 1) % 3;
+        }
         animationTimer = 0.0f;
     }
 }
@@ -195,4 +232,10 @@ SDL_FRect Character::getAttackBoundingBox() const {
 
 void Character::setGrounds(const std::vector<SDL_FRect>& groundsList) {
     grounds = groundsList;
+}
+
+void Character::character_die() {
+    if(isDead) return;
+    isDead = true;
+    death_frame = 0;
 }
