@@ -31,10 +31,22 @@ Character::Character()
     gravity = 500.0f; 
 }
 
-void Character::update(float dt, const Uint8* state) {
-    if(isDead || paused) {
+int cnt = 0;
+
+void Character::update(float dt, const Uint8* state, bool paused) {
+    if(isDead) {
         return;
     }
+    std::cout << "Updating " << cnt++ << std::endl;
+
+    if(paused) {
+        std::cout << "game is paused" << std::endl;
+        x = prev_x;
+        y = prev_y;
+        y_velocity = 0.0f;
+        return;
+    }
+
     isMoving = false;
     bool movingLeft = false, movingRight = false;
     
@@ -47,16 +59,16 @@ void Character::update(float dt, const Uint8* state) {
     previousX = x;
     previousY = y;
 
-    float ms = 200.0f * dt;
+    float move_speed = 200.0f * dt;
 
     if (state[SDL_SCANCODE_LEFT]) {
-        x -= ms;
+        x -= move_speed;
         facingRight = false;
         isMoving = true;
         movingLeft = true;
     }
     if (state[SDL_SCANCODE_RIGHT]) {
-        x += ms;
+        x += move_speed;
         facingRight = true;
         isMoving = true;
         movingRight = true;
@@ -74,10 +86,8 @@ void Character::update(float dt, const Uint8* state) {
         jumpKeyReleased = true;
     }
 
-    if(!paused) {
-        y_velocity += gravity*dt;
-        y += y_velocity*dt;
-    }
+    y_velocity += gravity*dt;
+    y += y_velocity*dt;
 
     if (x < 0) x = 0;
     else if (x > SCREEN_WIDTH - 32) x = SCREEN_WIDTH - 32;
@@ -120,17 +130,14 @@ void Character::update(float dt, const Uint8* state) {
     }
 
     if (hitWall) {  
-        if (y_velocity > 0) {  
-            y_velocity = 100.0f;
-        }
-    
+
         if (movingLeft) {  
             x = previousX + 3;
-            isWallSliding = true;
+            y_velocity = 100.0f;
         }  
         if (movingRight) {  
             x = previousX - 3;
-            isWallSliding = true;
+            y_velocity = 100.0f;
         }
     } else {
         isWallSliding = false;
@@ -141,6 +148,7 @@ void Character::update(float dt, const Uint8* state) {
         y = previousY;
     }
 
+    prev_x = x; prev_y = y;
 }
 
 void Character::draw() {

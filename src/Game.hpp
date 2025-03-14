@@ -17,6 +17,7 @@ extern bool paused;
 extern SDL_Event event;
 extern const int TILE_SIZE;
 extern TTF_Font* font;
+extern float prev_x, prev_y;
 
 void initialize();
 void close();

@@ -16,6 +16,7 @@ bool gameRunning = true;
 SDL_Event event;
 TTF_Font* font = nullptr;
 bool paused = false;
+float prev_x = 0, prev_y = 0;
 
 void initialize() {//initialize the screen
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -141,13 +142,8 @@ void drawGameScreen() {
 
     Uint32 startTime = SDL_GetTicks();
     while (gameRunning) {
+
         Uint32 frameStart = SDL_GetTicks();
-        float dt = (frameStart - startTime) / 1000.0f;
-        if (dt < 1.0f / 60.0f) {
-            SDL_Delay((1.0f / 60.0f - dt) * 1000);
-            dt = 1.0f / 60.0f;
-        }
-        startTime = frameStart;
 
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
@@ -157,19 +153,30 @@ void drawGameScreen() {
                     paused = !paused;
                     if(paused) {
                         draw_pause_screen();
+                        frameStart = SDL_GetTicks();
                     } else {
+                        std::cout << "game resume" << std::endl;
                         frameStart = SDL_GetTicks();
                     }
                 }
             }
         }
 
-        if(paused) continue;
+        if(paused) {
+            SDL_Delay(10);
+            continue;
+        }
+
+        float dt = (frameStart - startTime) / 1000.0f;
+        if (dt < 1.0f / 60.0f) {
+            SDL_Delay((1.0f / 60.0f - dt) * 1000);
+            dt = 1.0f / 60.0f;
+        }
+        startTime = frameStart;
 
         if(!character.isDead) {
             const Uint8* state = SDL_GetKeyboardState(nullptr);
-            if(paused) return;
-            character.update(dt, state);
+            character.update(dt, state, paused);
         }
 
         character.updateAnimation(dt);
@@ -282,8 +289,6 @@ void draw_pause_screen() {
         SDL_RenderPresent(renderer);
     }
 
-    SDL_Event flushEvent;
-    while (SDL_PollEvent(&flushEvent));
 }
 
 void draw_gameover_screen() {
