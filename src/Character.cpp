@@ -33,20 +33,10 @@ Character::Character()
 
 int cnt = 0;
 
-void Character::update(float dt, const Uint8* state, bool paused) {
+void Character::update(float dt, const Uint8* state) {
     if(isDead) {
         return;
     }
-    std::cout << "Updating " << cnt++ << std::endl;
-
-    if(paused) {
-        std::cout << "game is paused" << std::endl;
-        x = prev_x;
-        y = prev_y;
-        y_velocity = 0.0f;
-        return;
-    }
-
     isMoving = false;
     bool movingLeft = false, movingRight = false;
     
@@ -61,17 +51,19 @@ void Character::update(float dt, const Uint8* state, bool paused) {
 
     float move_speed = 200.0f * dt;
 
-    if (state[SDL_SCANCODE_LEFT]) {
-        x -= move_speed;
-        facingRight = false;
-        isMoving = true;
-        movingLeft = true;
-    }
-    if (state[SDL_SCANCODE_RIGHT]) {
-        x += move_speed;
-        facingRight = true;
-        isMoving = true;
-        movingRight = true;
+    if (!isAttacking) {
+        if (state[SDL_SCANCODE_LEFT]) {
+            x -= move_speed;
+            facingRight = false;
+            isMoving = true;
+            movingLeft = true;
+        }
+        if (state[SDL_SCANCODE_RIGHT]) {
+            x += move_speed;
+            facingRight = true;
+            isMoving = true;
+            movingRight = true;
+        }
     }
 
     if (state[SDL_SCANCODE_UP]) {

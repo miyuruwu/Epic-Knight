@@ -17,6 +17,11 @@ SDL_Event event;
 TTF_Font* font = nullptr;
 bool paused = false;
 float prev_x = 0, prev_y = 0;
+int score = 0;
+Uint32 warningSignStartTime = 0;  
+bool isWarningMessageVisible = false; 
+Uint32 warningSignInterval = 10000; 
+Uint32 warningSignDuration = 5000;
 
 void initialize() {//initialize the screen
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -73,7 +78,7 @@ void close() { // cleanup resources
 }
 
 void drawStartScreen() { 
-    Entity background("res/images/start_background.png", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    Entity background("res/images/start_background.jpeg", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     Entity startButton("res/images/start_button.png", SCREEN_WIDTH / 2 - 75, SCREEN_HEIGHT - 150, 200, 100);
     if (!background.texture || !startButton.texture) {
         std::cerr << "Failed to load textures." << std::endl;
@@ -99,7 +104,7 @@ void drawStartScreen() {
         SDL_RenderClear(renderer);
 
         background.draw(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-        startButton.draw(SCREEN_WIDTH / 2 - 75, SCREEN_HEIGHT - 150, 200, 100);
+        startButton.draw(SCREEN_WIDTH / 2 - 150, SCREEN_HEIGHT - 150, 200, 100);
         SDL_RenderPresent(renderer);
     }
 }
@@ -114,8 +119,20 @@ void resetGame() {
 
     Uint32 startTime = SDL_GetTicks();
     float spawnTimer = 0.0f;
+    score = 0;
 
     drawGameScreen();
+}
+
+void draw_score() {
+    SDL_Color textColor = {255, 255, 255, 255};
+    std::string scoreText = "Score: " + std::to_string(score);
+    SDL_Surface* textSurface = TTF_RenderText_Solid(font, scoreText.c_str(), textColor);
+    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    SDL_Rect textRect = {20, 20, 150, 50}; 
+    SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
+    SDL_DestroyTexture(textTexture);
+    SDL_FreeSurface(textSurface);
 }
 
 
@@ -144,29 +161,6 @@ void drawGameScreen() {
     while (gameRunning) {
 
         Uint32 frameStart = SDL_GetTicks();
-
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                gameRunning = false;
-            } else if (event.type == SDL_KEYDOWN) {
-                if(event.key.keysym.sym == SDLK_ESCAPE) {
-                    paused = !paused;
-                    if(paused) {
-                        draw_pause_screen();
-                        frameStart = SDL_GetTicks();
-                    } else {
-                        std::cout << "game resume" << std::endl;
-                        frameStart = SDL_GetTicks();
-                    }
-                }
-            }
-        }
-
-        if(paused) {
-            SDL_Delay(10);
-            continue;
-        }
-
         float dt = (frameStart - startTime) / 1000.0f;
         if (dt < 1.0f / 60.0f) {
             SDL_Delay((1.0f / 60.0f - dt) * 1000);
@@ -174,9 +168,15 @@ void drawGameScreen() {
         }
         startTime = frameStart;
 
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                gameRunning = false;
+            }
+        }
+
         if(!character.isDead) {
             const Uint8* state = SDL_GetKeyboardState(nullptr);
-            character.update(dt, state, paused);
+            character.update(dt, state);
         }
 
         character.updateAnimation(dt);
@@ -191,11 +191,34 @@ void drawGameScreen() {
             }
         }
 
+        if (score >= 100) {
+            Uint32 currentTime = SDL_GetTicks();
+        
+            if (warningSignStartTime == 0 || (currentTime - warningSignStartTime >= warningSignInterval)) {
+                warningSignStartTime = currentTime;
+                isWarningMessageVisible = true;
+            }
+        
+            if (isWarningMessageVisible) {
+                if ((currentTime - warningSignStartTime) % 1000 < 500) {
+                    isWarningMessageVisible = true;
+                } else {
+                    isWarningMessageVisible = false;
+                }
+        
+                if (currentTime - warningSignStartTime >= warningSignDuration) {
+                    isWarningMessageVisible = false;
+                }
+            }
+        }
+        
+
         if(character.isAttacking) {
             SDL_FRect attackBox = character.getAttackBoundingBox();
             for(auto& enemy : enemies) {
                 if(checkCollision(attackBox,enemy.boundingBox)) {
                     enemy.kill();
+                    score += 10;
                 }
             }
         }
@@ -228,9 +251,24 @@ void drawGameScreen() {
             enemy.draw();
         }
 
+        draw_score();
+
+        if (isWarningMessageVisible) {
+            SDL_Color textColor = {255, 0, 0, 255};
+            std::string warningText = "Watch your legs!!!";
+            SDL_Surface* textSurface = TTF_RenderText_Solid(font, warningText.c_str(), textColor);
+            SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+
+            SDL_Rect textRect = {SCREEN_WIDTH / 2 - 200, SCREEN_HEIGHT - 100, 400, 50};
+            SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
+
+            SDL_DestroyTexture(textTexture);
+            SDL_FreeSurface(textSurface);
+        }
+
         SDL_RenderPresent(renderer);
 
-        if(!gameRunning) {
+        if(!gameRunning && character.isDead) {
             draw_gameover_screen();
             return;
         }
