@@ -210,8 +210,8 @@ void drawGameScreen() {
             }
 
             if((currentTime - warningSignStartTime >= warningSignDuration) && !spikeSpawned) {
-                std::cout << "Spawning spike at: " << currentTime << std::endl;
-                int numberOfSpikes = 5;
+                //std::cout << "Spawning spike at: " << currentTime << std::endl;
+                int numberOfSpikes = 8;
                 for(int i = 0; i < numberOfSpikes; i++) {
                     float randomX = static_cast<float>(rand() % (SCREEN_WIDTH - 100) + 50);
                     spikes.push_back(Spike("res/images/trap_spike.png",randomX, 544));
@@ -230,8 +230,11 @@ void drawGameScreen() {
             SDL_FRect attackBox = character.getAttackBoundingBox();
             for(auto& enemy : enemies) {
                 if(checkCollision(attackBox,enemy.boundingBox)) {
-                    enemy.kill();
-                    score += 10;
+                    //std::cout << "enemy's health: " << enemy.health << std::endl;
+                    enemy.takeDamage();
+                    if(enemy.health <= 0) {
+                        score += enemy.isEnlarged ? 30 : 10;
+                    }
                 }
             }
         }
@@ -243,7 +246,7 @@ void drawGameScreen() {
         }
 
         for (auto& enemy : enemies) {
-            enemy.update(dt);
+            enemy.update(dt, score);
             enemy.updateAnimation(dt);
 
             // check for collision
@@ -267,7 +270,7 @@ void drawGameScreen() {
         character.draw();
 
         for(auto& spike: spikes) {
-            std::cout << "Drawing spikes at: " << spike.x << ' ' << spike.y << std::endl;
+            //std::cout << "Drawing spikes at: " << spike.x << ' ' << spike.y << std::endl;
             if(!spike.spike.texture) {
                 std::cerr << "error handling texture" << std::endl;
             }

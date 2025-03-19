@@ -14,12 +14,14 @@ public:
     float animationTimer;
     float speed;
     SDL_FRect boundingBox;
+    int health;
+    bool isEnlarged;
 
     Enemy(const char* path, float x, float y, float speed);
-    void update(float dt);
+    void update(float dt, int score);
     void draw();
     void updateAnimation(float dt);
-    void kill();
+    void takeDamage();
 };
 
 class Spike {

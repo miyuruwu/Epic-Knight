@@ -9,16 +9,26 @@ Enemy::Enemy(const char* path, float x, float y, float speed)
     this->x = x;
     this->y = y;
     this->speed = speed;
+    this->health = 1;
+    this->isEnlarged = false;
     isActive = true;
     run_frame = 0;
     animationTimer = 0.0f;
     boundingBox = {x, y, 32, 64};
 }
 
-void Enemy::update(float dt) {
+void Enemy::update(float dt, int score) {
     x += speed * dt; 
         if (x < -100 || x > SCREEN_WIDTH + 100) {
             isActive = false; 
+        }
+
+        if(score >= 200 && !isEnlarged) {
+            isEnlarged = true;
+            health = 5;
+            boundingBox.w *= 2;
+            boundingBox.h *= 2;
+            y -= boundingBox.h/2;
         }
 
         boundingBox.x = x;
@@ -35,7 +45,10 @@ void Enemy::draw() {
             {67,0,12,16},
             {83,0,12,16},
         };
-        run.draw(x, y, 32, 64, &srcRect_run[run_frame], flip);
+
+        int width = isEnlarged ? 64 : 32;
+        int height = isEnlarged ? 128 : 64;
+        run.draw(x, y, width, height, &srcRect_run[run_frame], flip);
 }
 
 void Enemy::updateAnimation(float dt) {
@@ -46,8 +59,16 @@ void Enemy::updateAnimation(float dt) {
     }
 }
 
-void Enemy::kill() {
-    isActive = false;
+
+void Enemy::takeDamage() {
+    
+    if(health > 0) {
+        health--;
+    }
+
+    if(health <= 0) {
+        isActive = false;
+    }
 }
 
 Spike::Spike(const char* path, float x, float y)
