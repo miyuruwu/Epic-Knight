@@ -19,8 +19,8 @@ bool paused = false;
 float prev_x = 0, prev_y = 0;
 int score = 0;
 Uint32 warningSignStartTime = 0;  
-bool isWarningMessageVisible = false; 
-Uint32 warningSignInterval = 10000; 
+bool isWarningMessageVisible = false, spikeSpawned = false; 
+Uint32 warningSignInterval = 15000; 
 Uint32 warningSignDuration = 5000;
 
 void initialize() {//initialize the screen
@@ -154,6 +154,7 @@ void drawGameScreen() {
     Character character;
     character.setGrounds(collisionTiles);
     std::vector<Enemy> enemies;
+    std::vector<Spike> spikes;
     float spawnTimer = 0.0f;
     const float spawnInterval = 2.0f; // spawn enemies every 2 seconds
 
@@ -192,27 +193,39 @@ void drawGameScreen() {
         }
 
         if (score >= 100) {
+
             Uint32 currentTime = SDL_GetTicks();
         
             if (warningSignStartTime == 0 || (currentTime - warningSignStartTime >= warningSignInterval)) {
                 warningSignStartTime = currentTime;
                 isWarningMessageVisible = true;
+                spikeSpawned = false;
             }
         
-            if (isWarningMessageVisible) {
-                if ((currentTime - warningSignStartTime) % 1000 < 500) {
-                    isWarningMessageVisible = true;
-                } else {
-                    isWarningMessageVisible = false;
-                }
-        
-                if (currentTime - warningSignStartTime >= warningSignDuration) {
-                    isWarningMessageVisible = false;
-                }
+            if (!spikeSpawned) {
+                bool blinkOn = (((currentTime - warningSignStartTime) % 1000) < 500);
+                isWarningMessageVisible = blinkOn;
+            } else {
+                isWarningMessageVisible = false;
             }
+
+            if((currentTime - warningSignStartTime >= warningSignDuration) && !spikeSpawned) {
+                std::cout << "Spawning spike at: " << currentTime << std::endl;
+                int numberOfSpikes = 5;
+                for(int i = 0; i < numberOfSpikes; i++) {
+                    float randomX = static_cast<float>(rand() % (SCREEN_WIDTH - 100) + 50);
+                    spikes.push_back(Spike("res/images/trap_spike.png",randomX, 544));
+                }
+                spikeSpawned = true;
+            }
+
+            spikes.erase(std::remove_if(spikes.begin(), spikes.end(), [](const Spike& spike) {
+                Uint32 now = SDL_GetTicks();
+                return (now - spike.spawn_time) > spike.SPIKE_LIFETIME;
+            }), spikes.end());
+
         }
         
-
         if(character.isAttacking) {
             SDL_FRect attackBox = character.getAttackBoundingBox();
             for(auto& enemy : enemies) {
@@ -220,6 +233,12 @@ void drawGameScreen() {
                     enemy.kill();
                     score += 10;
                 }
+            }
+        }
+
+        for(auto& spike: spikes) {
+            if(checkCollision(character.boundingBox,spike.boundingBox)) {
+                character.character_die();
             }
         }
 
@@ -246,6 +265,14 @@ void drawGameScreen() {
 
         renderMap(renderer, map, tilesetTexture, TILE_SIZE);
         character.draw();
+
+        for(auto& spike: spikes) {
+            std::cout << "Drawing spikes at: " << spike.x << ' ' << spike.y << std::endl;
+            if(!spike.spike.texture) {
+                std::cerr << "error handling texture" << std::endl;
+            }
+            spike.draw();
+        }
 
         for (auto& enemy : enemies) {
             enemy.draw();

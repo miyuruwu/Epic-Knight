@@ -2,6 +2,7 @@
 #include "Enemy.hpp"
 #include "Utils.hpp"
 #include "Game.hpp"
+#include<SDL2/SDL.h>
 
 Enemy::Enemy(const char* path, float x, float y, float speed)
     : run(path, 0, 0, 96, 16) {
@@ -47,4 +48,49 @@ void Enemy::updateAnimation(float dt) {
 
 void Enemy::kill() {
     isActive = false;
+}
+
+Spike::Spike(const char* path, float x, float y)
+    : spike(path, 0, 0, 112, 16) {
+        this->x = x;
+        this->y = y;
+        spike_frame = 0;
+        spawn_time = SDL_GetTicks();
+        reverseStartTime = spawn_time + 3000;
+        reversing = false;
+        SPIKE_LIFETIME = 5000;
+        boundingBox = {x,y,32,64};
+}
+
+void Spike::draw() {
+    Uint32 currentTime = SDL_GetTicks();
+
+    if(currentTime > reverseStartTime) {
+        reversing = true;
+    }
+
+    SDL_RendererFlip flip = SDL_FLIP_VERTICAL;
+    SDL_Rect srcRect_spike[7];
+    for(int i = 0; i < 7; i++) {
+        srcRect_spike[i] = {i*16, 0, 16, 16};
+    }
+    
+    if (reversing) {
+        spike_frame = 6 - ((currentTime - reverseStartTime) / 500) % 7;
+    } else {
+        spike_frame = ((currentTime - spawn_time) / 500) % 7;
+    }
+
+    if (spike_frame < 0) spike_frame = 0;
+
+    int baseHeight = 64;
+    int frameCount = 7;
+    int heightPerFrame = baseHeight / frameCount; 
+    int currentHeight = (spike_frame + 1) * heightPerFrame; 
+
+    boundingBox.x = x;
+    boundingBox.y = y + (baseHeight - currentHeight);
+    boundingBox.w = 32;
+    boundingBox.h = currentHeight; 
+    spike.draw(x, y, 32, 64, &srcRect_spike[spike_frame], flip);
 }
