@@ -121,6 +121,10 @@ void resetGame() {
     float spawnTimer = 0.0f;
     score = 0;
 
+    warningSignStartTime = 0;
+    isWarningMessageVisible = false;
+    spikeSpawned = false;
+
     drawGameScreen();
 }
 
