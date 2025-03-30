@@ -115,3 +115,46 @@ void Spike::draw() {
     boundingBox.h = currentHeight; 
     spike.draw(x, y, 32, 64, &srcRect_spike[spike_frame], flip);
 }
+
+flyingEnemy::flyingEnemy(const char* path, float x, float y, float speed)
+    : fly(path, 0, 0, 24, 8) {
+    this->x = x;
+    this->y = y;
+    this->speed = speed;
+    isActive = true;
+    fly_frame = 0;
+    animationTimer = 0.0f;
+    boundingBox = {x, y, 32, 32};
+}
+
+void flyingEnemy::update(float dt) {
+    x += speed * dt;
+    if (x < -100 || x > SCREEN_WIDTH + 100) {
+        isActive = false;
+    }
+    boundingBox.x = x;
+    boundingBox.y = y;
+}
+
+void flyingEnemy::draw() {
+    SDL_RendererFlip flip = (speed < 0) ? SDL_FLIP_NONE : SDL_FLIP_HORIZONTAL;
+    SDL_Rect srcRect_fly[3] = {
+        {0,0,8,8},
+        {8,0,8,8},
+        {16,0,8,8}
+    };
+
+    fly.draw(x, y, 32, 32, &srcRect_fly[fly_frame], flip);
+}
+
+void flyingEnemy::updateAnimation(float dt) {
+    animationTimer += dt;
+    if (animationTimer > 0.1f) {
+        fly_frame = (fly_frame + 1) % 3;
+        animationTimer = 0.0f;
+    }
+}
+
+void flyingEnemy::kill() {
+    isActive = false;
+}

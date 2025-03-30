@@ -40,4 +40,20 @@ public:
     
 };
 
+class flyingEnemy {
+public:
+    Entity fly;
+    float x, y;
+    bool isActive;
+    int fly_frame;
+    float animationTimer;
+    float speed;
+    SDL_FRect boundingBox;
+
+    flyingEnemy(const char* path, float x, float y, float speed);
+    void update(float dt);
+    void draw();
+    void updateAnimation(float dt);
+    void kill();
+};
 #endif // ENEMY_HPP

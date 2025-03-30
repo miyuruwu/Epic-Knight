@@ -21,7 +21,7 @@ public:
     float gravity;
 
     Character();
-    void update(float dt, const Uint8* state);
+    void update(float dt, const Uint8* state, bool paused);
     void draw();
     void updateAnimation(float dt);
     void setGrounds(const std::vector<SDL_FRect>& groundsList);

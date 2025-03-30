@@ -33,7 +33,11 @@ Character::Character()
 
 int cnt = 0;
 
-void Character::update(float dt, const Uint8* state) {
+void Character::update(float dt, const Uint8* state, bool paused) {
+    if(paused) {
+        return;
+    }
+
     if(isDead) {
         return;
     }

@@ -48,7 +48,7 @@ void initialize() {//initialize the screen
         exit(1);
     }
 
-    window = SDL_CreateWindow("Epic Knight v1.0", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
+    window = SDL_CreateWindow("Epic Knight v2.0", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
     if (window == nullptr) {
         std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;
         IMG_Quit();
@@ -77,7 +77,7 @@ void close() { // cleanup resources
     SDL_Quit();
 }
 
-void drawStartScreen() { 
+void drawStartScreen() {
     Entity background("res/images/start_background.jpeg", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     Entity startButton("res/images/start_button.png", SCREEN_WIDTH / 2 - 75, SCREEN_HEIGHT - 150, 200, 100);
     if (!background.texture || !startButton.texture) {
@@ -159,8 +159,10 @@ void drawGameScreen() {
     character.setGrounds(collisionTiles);
     std::vector<Enemy> enemies;
     std::vector<Spike> spikes;
-    float spawnTimer = 0.0f;
+    std::vector<flyingEnemy> flyingEnemies;
+    float spawnTimer = 0.0f, spawnFlyingTimer = 0.0f;
     const float spawnInterval = 2.0f; // spawn enemies every 2 seconds
+    const float spawnFlyingInterval = 4.0f; // spawn flying enemies every 4 seconds
 
     Uint32 startTime = SDL_GetTicks();
     while (gameRunning) {
@@ -177,22 +179,43 @@ void drawGameScreen() {
             if (event.type == SDL_QUIT) {
                 gameRunning = false;
             }
+            else if (event.type == SDL_KEYDOWN) {
+                if(event.key.keysym.sym == SDLK_ESCAPE) {
+                    paused = !paused;
+                    if(paused) {
+                        draw_pause_screen();
+                        startTime = SDL_GetTicks();
+                    }
+                }
+            }
         }
 
         if(!character.isDead) {
             const Uint8* state = SDL_GetKeyboardState(nullptr);
-            character.update(dt, state);
+            character.update(dt, state, paused);
         }
 
         character.updateAnimation(dt);
 
         spawnTimer += dt;
+        spawnFlyingTimer += dt;
         if (spawnTimer >= spawnInterval) {
             spawnTimer = 0.0f;
             if (rand() % 2 == 0) {
                 enemies.push_back(Enemy("res/images/enemy_run.png", -100, 544, 100)); // spawn left
             } else {
                 enemies.push_back(Enemy("res/images/enemy_run.png", SCREEN_WIDTH + 100, 544, -100));  //spawn right
+            }
+        }
+        if (spawnFlyingTimer >= spawnFlyingInterval) {
+            spawnFlyingTimer = 0.0f;
+            int minY = 250;
+            int maxY = 500;
+            int randomY = rand() % (maxY - minY + 1) + minY;
+            if (rand() % 2 == 0) {
+                flyingEnemies.push_back(flyingEnemy("res/images/flying_enemy.png", SCREEN_WIDTH + 100, randomY, -100));
+            } else {
+                flyingEnemies.push_back(flyingEnemy("res/images/flying_enemy.png", -100, randomY, 100));
             }
         }
 
@@ -241,6 +264,12 @@ void drawGameScreen() {
                     }
                 }
             }
+            for(auto& flyingEnemy : flyingEnemies) {
+                if(checkCollision(attackBox, flyingEnemy.boundingBox)) {
+                    flyingEnemy.kill();
+                    score += 10;
+                }
+            }
         }
 
         for(auto& spike: spikes) {
@@ -253,11 +282,21 @@ void drawGameScreen() {
             enemy.update(dt, score);
             enemy.updateAnimation(dt);
 
-            // check for collision
             if(checkCollision(character.boundingBox,enemy.boundingBox)) {
                 character.character_die();
             }
         }
+
+        for(auto& flyingEnemy: flyingEnemies) {
+            flyingEnemy.update(dt);
+            flyingEnemy.updateAnimation(dt);
+            if(checkCollision(character.boundingBox,flyingEnemy.boundingBox)) {
+                character.character_die();
+            }
+        }
+
+        flyingEnemies.erase(std::remove_if(flyingEnemies.begin(), flyingEnemies.end(),
+            [](const flyingEnemy& flyingEnemy) { return !flyingEnemy.isActive; }), flyingEnemies.end());
 
         enemies.erase(std::remove_if(enemies.begin(), enemies.end(),
             [](const Enemy& enemy) { return !enemy.isActive; }), enemies.end());
@@ -283,6 +322,10 @@ void drawGameScreen() {
 
         for (auto& enemy : enemies) {
             enemy.draw();
+        }
+
+        for(auto& flyingEnemy: flyingEnemies) {
+            flyingEnemy.draw();
         }
 
         draw_score();
@@ -360,7 +403,6 @@ void draw_pause_screen() {
         }
         SDL_RenderPresent(renderer);
     }
-
 }
 
 void draw_gameover_screen() {
