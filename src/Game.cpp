@@ -64,14 +64,9 @@ void initialize() {//initialize the screen
         SDL_Quit();
         exit(1);
     }
-    if (SDL_Init(SDL_INIT_AUDIO) < 0) {
-        std::cerr << "Failed to initialize SDL_audio: " << SDL_GetError() << std::endl;
-        exit(1);
-    }
 }
 
 void close() { // cleanup resources
-    Mix_Quit();
     if(font) {
         TTF_CloseFont(font);
     }
